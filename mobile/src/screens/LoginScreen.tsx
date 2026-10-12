@@ -1,114 +1,245 @@
 import React, { useState } from "react";
+import { router } from "expo-router";
 import {
-  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { useAuth } from "../store/AuthContext";
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function LoginScreen() {
+  const { signIn, signUp } = useAuth();
+  const [isRegisterMode, setIsRegisterMode] = useState(false);
+  const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleLogin = () => {
-    if (!username || !password) {
-      Alert.alert("Attention", "Please fill in all fields.");
+  const handleSubmit = async () => {
+    if (loading) return;
+
+    const trimmedEmail = username.trim().toLowerCase();
+    const trimmedName = name.trim();
+
+    if (isRegisterMode && !trimmedName) {
+      setErrorMessage("Please enter your shop or merchant name.");
       return;
     }
 
-    Alert.alert("Karny", "Connection successful!");
+    if (!trimmedEmail || !password) {
+      setErrorMessage("Please enter your email and password.");
+      return;
+    }
+
+    if (!EMAIL_REGEX.test(trimmedEmail)) {
+      setErrorMessage("Please enter a valid email address.");
+      return;
+    }
+
+    if (isRegisterMode && password.length < 8) {
+      setErrorMessage("Password must be at least 8 characters long.");
+      return;
+    }
+
+    setErrorMessage(null);
+    setLoading(true);
+
+    try {
+      if (isRegisterMode) {
+        await signUp(trimmedName, trimmedEmail, password);
+      } else {
+        await signIn(trimmedEmail, password);
+      }
+      router.replace("/home");
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Could not connect to the server."
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <View style={styles.container}>
-      {/* Decorative circles */}
-      <View style={styles.bigCircle} />
-      <View style={styles.smallCircle} />
+    <KeyboardAvoidingView
+      style={styles.keyboardContainer}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <ScrollView
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Decorative circles */}
+        <View style={styles.bigCircle} />
+        <View style={styles.smallCircle} />
 
-      {/* Top area */}
-      <View style={styles.topSection}>
-        <View style={styles.logoRow}>
-          <View style={styles.logoBox}>
-            <View style={styles.bookLeft} />
-            <View style={styles.bookRight} />
-            <View style={styles.bookMiddle} />
+        {/* Top area */}
+        <View style={styles.topSection}>
+          <View style={styles.logoRow}>
+            <View style={styles.logoBox}>
+              <View style={styles.bookLeft} />
+              <View style={styles.bookRight} />
+              <View style={styles.bookMiddle} />
+            </View>
+
+            <View>
+              <Text style={styles.logoText}>Karny</Text>
+              <Text style={styles.logoSubtitle}>الكَرني</Text>
+            </View>
           </View>
 
-          <View>
-            <Text style={styles.logoText}>Karny</Text>
-            <Text style={styles.logoSubtitle}>الكَرني</Text>
+          <View style={styles.badge}>
+            <Text style={styles.badgeCheck}>✓</Text>
+            <Text style={styles.badgeText}>Your notebook, made simple</Text>
           </View>
         </View>
 
-        <View style={styles.badge}>
-          <Text style={styles.badgeCheck}>✓</Text>
-          <Text style={styles.badgeText}>Your notebook, made simple</Text>
+        <View style={styles.welcomeSection}>
+          <Text style={styles.eyebrow}>A CALMER WAY TO KEEP CREDIT</Text>
+
+          <Text style={styles.welcomeText}>
+            {isRegisterMode ? "Start your" : "Welcome back,"}
+          </Text>
+
+          <Text style={styles.welcomeAccent}>
+            {isRegisterMode ? "notebook." : "Arabi."}
+          </Text>
+
+          <Text style={styles.description}>
+            Keep track of your customers and every{"\n"}
+            dirham in one clear place.
+          </Text>
         </View>
-      </View>
 
-      <View style={styles.welcomeSection}>
-        <Text style={styles.eyebrow}>A CALMER WAY TO KEEP CREDIT</Text>
+        <View style={styles.form}>
+          {errorMessage ? (
+            <View style={styles.errorBanner} accessibilityRole="alert">
+              <Text style={styles.errorBannerText}>{errorMessage}</Text>
+            </View>
+          ) : null}
 
-        <Text style={styles.welcomeText}>Welcome back,</Text>
+          {isRegisterMode ? (
+            <>
+              <Text style={styles.label}>Shop / Merchant Name</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your name or shop name"
+                placeholderTextColor="#A5B2B0"
+                value={name}
+                onChangeText={(text) => {
+                  setName(text);
+                  if (errorMessage) setErrorMessage(null);
+                }}
+                editable={!loading}
+                accessibilityLabel="Shop or Merchant Name"
+              />
+            </>
+          ) : null}
 
-        <Text style={styles.welcomeAccent}>Arabi.</Text>
+          <Text style={styles.label}>Username (Email)</Text>
 
-        <Text style={styles.description}>
-          Keep track of your customers and every{"\n"}
-          dirham in one clear place.
-        </Text>
-      </View>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter your email"
+            keyboardType="email-address"
+            placeholderTextColor="#A5B2B0"
+            value={username}
+            onChangeText={(text) => {
+              setUsername(text);
+              if (errorMessage) setErrorMessage(null);
+            }}
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!loading}
+            accessibilityLabel="Email address"
+          />
 
-      <View style={styles.form}>
-        <Text style={styles.label}>Username</Text>
+          <Text style={styles.label}>Password</Text>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Enter your username"
-          placeholderTextColor="#A5B2B0"
-          value={username}
-          onChangeText={setUsername}
-          autoCapitalize="none"
-        />
+          <TextInput
+            style={styles.input}
+            placeholder="Enter your password"
+            placeholderTextColor="#A5B2B0"
+            value={password}
+            onChangeText={(text) => {
+              setPassword(text);
+              if (errorMessage) setErrorMessage(null);
+            }}
+            secureTextEntry
+            editable={!loading}
+            onSubmitEditing={handleSubmit}
+            returnKeyType="go"
+            accessibilityLabel="Password"
+          />
 
-        <Text style={styles.label}>Password</Text>
+          <TouchableOpacity
+            style={[styles.button, loading && styles.buttonDisabled]}
+            onPress={handleSubmit}
+            activeOpacity={0.8}
+            disabled={loading}
+            accessibilityRole="button"
+            accessibilityLabel={isRegisterMode ? "Create account" : "Log in"}
+          >
+            <Text style={styles.buttonText}>
+              {loading
+                ? isRegisterMode
+                  ? "Creating account..."
+                  : "Logging in..."
+                : isRegisterMode
+                ? "Create account"
+                : "Log in"}
+            </Text>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Enter your password"
-          placeholderTextColor="#A5B2B0"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
+            <Text style={styles.arrow}>→</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.button}
-          onPress={handleLogin}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.buttonText}>Log in</Text>
+          <TouchableOpacity
+            style={styles.modeSwitchButton}
+            onPress={() => {
+              setIsRegisterMode((prev) => !prev);
+              setErrorMessage(null);
+            }}
+            disabled={loading}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.modeSwitchText}>
+              {isRegisterMode
+                ? "Already have an account? Log in"
+                : "New shop owner? Create an account"}
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-          <Text style={styles.arrow}>→</Text>
-        </TouchableOpacity>
-      </View>
+        <View style={styles.bottomSection}>
+          <View style={styles.bottomLine} />
 
-      <View style={styles.bottomSection}>
-        <View style={styles.bottomLine} />
+          <Text style={styles.bottomText}>Trusted by neighborhood shops</Text>
 
-        <Text style={styles.bottomText}>Trusted by neighborhood shops</Text>
-
-        <View style={styles.bottomLine} />
-      </View>
-    </View>
+          <View style={styles.bottomLine} />
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  keyboardContainer: {
     flex: 1,
+    backgroundColor: "#F8F6EF",
+  },
+  container: {
+    flexGrow: 1,
     backgroundColor: "#F8F6EF",
     paddingHorizontal: 32,
     paddingTop: 48,
@@ -199,7 +330,7 @@ const styles = StyleSheet.create({
   },
 
   logoSubtitle: {
-    fontSize: 9,
+    fontSize: 10,
     color: "#237A75",
     marginTop: 2,
   },
@@ -224,16 +355,16 @@ const styles = StyleSheet.create({
 
   badgeText: {
     color: "#237A75",
-    fontSize: 7,
+    fontSize: 10,
     fontWeight: "600",
   },
 
   welcomeSection: {
-    marginTop: 72,
+    marginTop: 56,
   },
 
   eyebrow: {
-    fontSize: 8,
+    fontSize: 10,
     fontWeight: "800",
     letterSpacing: 0.6,
     color: "#237A75",
@@ -242,34 +373,50 @@ const styles = StyleSheet.create({
 
   welcomeText: {
     fontSize: 31,
-    lineHeight: 34,
+    lineHeight: 35,
     fontWeight: "800",
     color: "#173F3D",
   },
 
   welcomeAccent: {
     fontSize: 31,
-    lineHeight: 34,
+    lineHeight: 35,
     fontWeight: "800",
     color: "#E8795F",
   },
 
   description: {
-    fontSize: 12,
+    fontSize: 13,
     lineHeight: 20,
     color: "#7B8582",
     marginTop: 14,
   },
 
   form: {
-    marginTop: 42,
+    marginTop: 34,
+  },
+
+  errorBanner: {
+    backgroundColor: "#FCECE8",
+    borderWidth: 1,
+    borderColor: "#F3C1B4",
+    borderRadius: 14,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    marginBottom: 16,
+  },
+
+  errorBannerText: {
+    color: "#B43E24",
+    fontSize: 12,
+    fontWeight: "600",
   },
 
   label: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "700",
     color: "#234542",
-    marginBottom: 10,
+    marginBottom: 8,
   },
 
   input: {
@@ -279,9 +426,9 @@ const styles = StyleSheet.create({
     borderColor: "#DCE3DF",
     borderRadius: 17,
     paddingHorizontal: 18,
-    fontSize: 12,
+    fontSize: 14,
     color: "#173F3D",
-    marginBottom: 20,
+    marginBottom: 18,
   },
 
   button: {
@@ -294,9 +441,13 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
+  buttonDisabled: {
+    opacity: 0.7,
+  },
+
   buttonText: {
     color: "#FFFFFF",
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: "800",
   },
 
@@ -304,12 +455,25 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: 18,
     color: "#FFFFFF",
-    fontSize: 24,
-    fontWeight: "300",
+    fontSize: 22,
+    fontWeight: "400",
+  },
+
+  modeSwitchButton: {
+    alignSelf: "center",
+    marginTop: 16,
+    paddingVertical: 6,
+  },
+
+  modeSwitchText: {
+    color: "#237A75",
+    fontSize: 12,
+    fontWeight: "700",
   },
 
   bottomSection: {
     marginTop: "auto",
+    paddingTop: 24,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -322,8 +486,8 @@ const styles = StyleSheet.create({
   },
 
   bottomText: {
-    fontSize: 7,
+    fontSize: 10,
     color: "#81918D",
-    marginHorizontal: 18,
+    marginHorizontal: 14,
   },
 });
